@@ -1,0 +1,119 @@
+Prepare Your Node.js Backend
+-----------------------------
+
+ a. Setup Your Application
+
+1. Clone your repository and install dependencies:
+  
+   git clone https://github.com/crmwelkin/hrms-backend.git
+   cd hrms-backend
+   npm install
+ 
+
+2. Configure Environment Variables:
+   
+   Create a `.env` file (or use your configuration management) with necessary variables:
+  
+   PORT=3000
+   DB_HOST=localhost
+   DB_USER=username
+   DB_PASS=yourpassword
+   JWT_SECRET=your_secret_key
+
+
+ b. Run Your Application with PM2
+
+PM2 is a process manager that keeps your application running and can auto-restart it if it crashes.
+
+1. Install PM2 globally:
+  
+   npm install -g pm2
+ 
+
+2. Start your Node.js app with PM2:
+  
+   pm2 start app.js --name my-backend
+  
+   Replace `app.js` with the main file of your application.
+
+3. Save the PM2 process list and configure it to start on boot:
+
+   pm2 save
+   pm2 startup
+
+   Your Node.js backend is running on port 3000.
+
+ c. Configure Firewall Rules
+
+Allow inbound traffic on port 3000:
+
+sudo firewall-cmd --permanent --add-port=3000/tcp
+sudo firewall-cmd --reload
+
+
+---
+
+2. Create a Target Group
+A Target Group tells the ALB where to send requests.
+
+1. Go to AWS Console → EC2 → Target Groups
+2. Create Target Group
+   - Type: Instance
+   - Protocol: HTTP
+   - Port: `3000`
+   - Target Type: Instances
+   - VPC: Select your VPC
+3. Register Your EC2 Instances
+   - Select your Node.js backend EC2 instances
+   - Health Check Path: `/health` (or any working API route)
+   - Save & Create Target Group
+
+---
+
+3. Create an Application Load Balancer (ALB)
+
+1. Go to AWS Console → EC2 → Load Balancers
+2. Create Load Balancer
+   - Type: Application Load Balancer
+   - Name: `backend-alb`
+   - Scheme: Internet-facing (if public) or Internal
+   - Listeners: HTTP (80) → We’ll add HTTPS (443) later
+   - VPC: Select your VPC
+   - Subnets: Select at least 2 subnets (multi-AZ recommended)
+3. Select Security Group
+   - Allow HTTP (80) and HTTPS (443) inbound
+4. Attach Target Group
+   - Choose the Target Group we created earlier
+
+---
+
+4. Configure Listener Rules
+
+We want to:
+ Redirect HTTP (80) → HTTPS (443)
+ Forward HTTPS traffic to backend servers on port 3000
+
+Add SSL/HTTPS Support
+
+1. Get an SSL Certificate
+   - Go to AWS Certificate Manager (ACM)
+   - Request a public certificate for your domain (e.g., `api.example.com`)
+   - Validate via DNS or Email
+
+2. Modify Load Balancer Listeners
+   - HTTP (80) → Redirect to HTTPS (443)
+   - HTTPS (443) → Forward to Target Group (port 3000)
+   - Select your SSL certificate
+
+---
+
+5. Test the Load Balancer
+
+1. Find the Load Balancer DNS Name (`backend-alb-123456.us-east-1.elb.amazonaws.com`)
+2. Open a browser and test:
+   
+   https://backend-alb-123456.us-east-1.elb.amazonaws.com
+   
+3. It should route requests to your Node.js backend
+
+
